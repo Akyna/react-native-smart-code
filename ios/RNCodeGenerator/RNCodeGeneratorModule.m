@@ -50,15 +50,7 @@ RCT_EXPORT_METHOD(
         switch (type) {
             case GeneratorCode_Code128:
             {
-                NKDCode128Barcode *barcode = [NKDCode128Barcode alloc];
-                barcode = [barcode initWithContent:code printsCaption:NO];
-                [barcode setBarWidth:1.0];
-                [barcode setCodeSet:SET_B];
-                [barcode generateChecksum];
-                [barcode setWidth:size.width];
-                [barcode setHeight:size.height];
-                [barcode calculateWidth];
-                image= [UIImage imageFromBarcode:barcode];
+                image=[RNCodeGeneratorModule generterCode128:code size:size];
                 
             }
                 break;
@@ -85,20 +77,38 @@ RCT_EXPORT_METHOD(
 }
 
 #pragma mark -
+#pragma mark Code128
+#pragma mark -
++ (UIImage *)generterCode128:(NSString *)code size:(CGSize)size{
+    
+    CIFilter *filter = [CIFilter filterWithName:@"CICode128BarcodeGenerator"];
+    [filter setDefaults];
+    
+    NSData *data = [code dataUsingEncoding:NSUTF8StringEncoding];
+    
+    NSNumber *barcodeHeight = [NSNumber numberWithInt: 60];
+    NSNumber *quietSpace = [NSNumber numberWithInt: 2];
+    [filter setValue:data forKey:@"inputMessage"];
+    [filter setValue:barcodeHeight forKey:@"inputBarcodeHeight"];
+    [filter setValue:quietSpace forKey:@"inputQuietSpace"];
+    
+
+    CIImage *outputImage = [filter outputImage];
+    UIImage *qrcode=[RNCodeGeneratorModule createNonInterpolatedUIImageFromCIImage:outputImage withSize:size];
+    return qrcode;
+}
+
+#pragma mark -
 #pragma mark QRCode
 #pragma mark -
 + (UIImage *)generterQRCode:(NSString *)code size:(CGSize)size{
-    //1.创建过滤器
     CIFilter *filter = [CIFilter filterWithName:@"CIQRCodeGenerator"];
     
-    //2.恢复默认
     [filter setDefaults];
     
-    //3.给过滤器添加数据
     NSData *data = [code dataUsingEncoding:NSUTF8StringEncoding];
     [filter setValue:data forKey:@"inputMessage"];
     [filter setValue:@"L" forKey:@"inputCorrectionLevel"];
-    //4.获取输出二维码
     CIImage *outputImage = [filter outputImage];
     UIImage *qrcode=[RNCodeGeneratorModule createNonInterpolatedUIImageFromCIImage:outputImage withSize:size];
     return qrcode;
@@ -110,9 +120,8 @@ RCT_EXPORT_METHOD(
     CGRect withOutMargin = CGRectMake(1, 1, extent.size.width-2, extent.size.height-2);
     CGFloat scale = MIN(size.width/CGRectGetWidth(extent), size.height/CGRectGetHeight(extent));
     
-    //1.创建bitmap
-    size_t width = CGRectGetWidth(extent) *scale;
-    size_t height = CGRectGetHeight(extent) *scale;
+    size_t width = CGRectGetWidth(extent) * scale;
+    size_t height = CGRectGetHeight(extent) * scale;
     CGColorSpaceRef cs = CGColorSpaceCreateDeviceGray();
     CGContextRef bitmapRef = CGBitmapContextCreate(nil, width, height, 8, 0, cs, (CGBitmapInfo)kCGImageAlphaNone);
     CIContext *context = [CIContext contextWithOptions:nil];
@@ -121,7 +130,6 @@ RCT_EXPORT_METHOD(
     CGContextScaleCTM(bitmapRef, scale, scale);
     CGContextDrawImage(bitmapRef, extent, bitmapImage);
     
-    //2.保存bitmap到图片
     CGImageRef scaledImage = CGBitmapContextCreateImage(bitmapRef);
     CGContextRelease(bitmapRef);
     CGImageRelease(bitmapImage);
